@@ -24,7 +24,7 @@ router.get('/upcoming', async (req, res) => {
       const matches = await footballApi.getUpcomingMatches(league.id, league.season, parseInt(next), forceRefresh);
       results.push(...matches.map(m => ({
         ...m,
-        leagueKey: league.id === 2 ? 'ucl' : 'worldcup',
+        leagueKey: league.id === 2001 ? 'ucl' : 'worldcup',
         leagueName: league.name,
       })));
     }
@@ -115,15 +115,15 @@ router.get('/league/:leagueId/scorers', async (req, res) => {
   }
 });
 
-// GET /api/matches/debug — test API connection, shows raw response
+// GET /api/matches/debug — test connexion API
 router.get('/debug', async (req, res) => {
   const results = {};
   for (const [key, league] of Object.entries(LEAGUES)) {
-    results[key] = await footballApi.testApiConnection(league.id, league.season);
+    results[key] = await footballApi.testApiConnection(league.id);
   }
   res.json({
-    apiKey: process.env.RAPIDAPI_KEY ? `${process.env.RAPIDAPI_KEY.slice(0, 8)}...` : 'NOT SET',
-    apiHost: process.env.RAPIDAPI_HOST,
+    apiKey: process.env.FOOTBALL_DATA_API_KEY ? `${process.env.FOOTBALL_DATA_API_KEY.slice(0, 8)}...` : 'NOT SET',
+    provider: 'football-data.org',
     leagues: results,
     apiUsageToday: cache.getApiUsageToday(),
   });
