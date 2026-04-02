@@ -7,21 +7,30 @@ function FormBadge({ result }) {
   return <span className="badge-form-loss">L</span>;
 }
 
-export default function TeamForm({ form, className = '' }) {
-  if (!form) {
-    return (
-      <div className={`flex gap-1 ${className}`}>
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="skeleton w-7 h-7 rounded-full" />
-        ))}
-      </div>
-    );
-  }
+// État vide — pas de données disponibles (pas de skeleton loader trompeur)
+function EmptyForm({ className = '' }) {
+  return (
+    <div className={`flex gap-1 ${className}`}>
+      {[...Array(5)].map((_, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold bg-bg-surface/50 text-text-muted border border-white/5"
+        >
+          ?
+        </span>
+      ))}
+    </div>
+  );
+}
 
-  // form can be a string like "WWDLW" or array
+export default function TeamForm({ form, className = '' }) {
+  if (!form) return <EmptyForm className={className} />;
+
   const chars = typeof form === 'string'
     ? form.slice(-5).split('')
     : form.slice(-5);
+
+  if (!chars.length) return <EmptyForm className={className} />;
 
   return (
     <div className={`flex gap-1 ${className}`}>
@@ -33,15 +42,7 @@ export default function TeamForm({ form, className = '' }) {
 }
 
 export function FormFromMatches({ matches, teamId, className = '' }) {
-  if (!matches?.length) {
-    return (
-      <div className={`flex gap-1 ${className}`}>
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="skeleton w-7 h-7 rounded-full" />
-        ))}
-      </div>
-    );
-  }
+  if (!matches?.length) return <EmptyForm className={className} />;
 
   const form = matches.slice(-5).map(m => {
     const homeId = m.teams?.home?.id;

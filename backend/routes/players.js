@@ -13,7 +13,8 @@ router.get('/fixture/:fixtureId', async (req, res) => {
   }
 });
 
-// GET /api/players/fixture/:fixtureId/scorers — top scorer predictions for a match
+// GET /api/players/fixture/:fixtureId/scorers
+// Utilise les top buteurs de la compétition filtrés par équipe
 router.get('/fixture/:fixtureId/scorers', async (req, res) => {
   try {
     const { fixtureId } = req.params;
@@ -22,62 +23,50 @@ router.get('/fixture/:fixtureId/scorers', async (req, res) => {
     const fixture = await footballApi.getFixture(id);
     if (!fixture) return res.status(404).json({ error: 'Fixture not found' });
 
-    const playerData = await footballApi.getPlayerStats(id);
+    const homeTeamId = fixture.teams?.home?.id;
+    const awayTeamId = fixture.teams?.away?.id;
+    const leagueId = fixture.league?.id;
 
-    if (!playerData?.length) {
-      return res.json({ home: [], away: [] });
+    // Récupère les top buteurs de la compétition
+    const allScorers = await footballApi.getTopScorers(leagueId);
+
+    function computeScorerScore(scorer) {
+      const stats = scorer.statistics?.[0];
+      const goals = stats?.goals?.total || 0;
+      const appearances = stats?.games?.appearances || 1;
+      const assists = stats?.goals?.assists || 0;
+      // Score pondéré : ratio buts/match + assists
+      return Math.min(100, Math.round((goals / appearances) * 55 + (assists / appearances) * 20 + goals * 1.5));
     }
 
-    function computeScorerScore(stats) {
-      const s = stats.statistics?.[0];
-      if (!s) return 0;
-      const goals = s.goals?.total || 0;
-      const shots = s.shots?.total || 0;
-      const shotsOn = s.shots?.on || 0;
-      const assists = s.goals?.assists || 0;
-      // Weighted scoring formula
-      return goals * 30 + shotsOn * 10 + shots * 5 + assists * 8;
-    }
-
-    function processTeamPlayers(teamData) {
-      return (teamData?.players || [])
-        .map(p => {
-          const s = p.statistics?.[0];
-          const score = computeScorerScore(p);
-          return {
-            id: p.player?.id,
-            name: p.player?.name,
-            number: p.player?.number,
-            position: s?.games?.position || 'N/A',
-            photo: p.player?.photo,
-            goals: s?.goals?.total || 0,
-            assists: s?.goals?.assists || 0,
-            shots: s?.shots?.total || 0,
-            shotsOn: s?.shots?.on || 0,
-            minutes: s?.games?.minutes || 0,
-            rating: s?.games?.rating || null,
-            scorerScore: Math.min(100, Math.round(score)),
-          };
-        })
-        .filter(p => p.minutes > 0)
+    function filterTeamScorers(teamId) {
+      return allScorers
+        .filter(s => s.team?.id === teamId)
+        .map(s => ({
+          id: s.player?.id,
+          name: s.player?.name,
+          position: 'Attacker',
+          photo: s.player?.photo || null,
+          goals: s.statistics?.[0]?.goals?.total || 0,
+          assists: s.statistics?.[0]?.goals?.assists || 0,
+          shots: null,
+          shotsOn: null,
+          minutes: (s.statistics?.[0]?.games?.appearances || 0) * 80,
+          rating: null,
+          scorerScore: computeScorerScore(s),
+        }))
         .sort((a, b) => b.scorerScore - a.scorerScore)
         .slice(0, 5);
     }
 
-    const homeTeamId = fixture.teams?.home?.id;
-    const awayTeamId = fixture.teams?.away?.id;
-
-    const homeData = playerData.find(t => t.team?.id === homeTeamId);
-    const awayData = playerData.find(t => t.team?.id === awayTeamId);
-
     res.json({
       home: {
         team: fixture.teams?.home,
-        players: processTeamPlayers(homeData),
+        players: filterTeamScorers(homeTeamId),
       },
       away: {
         team: fixture.teams?.away,
-        players: processTeamPlayers(awayData),
+        players: filterTeamScorers(awayTeamId),
       },
     });
   } catch (err) {
@@ -101,7 +90,7 @@ router.get('/league/:leagueId/topscorers', async (req, res) => {
   }
 });
 
-// GET /api/players/team/:teamId/form — recent form
+// GET /api/players/team/:teamId/form
 router.get('/team/:teamId/form', async (req, res) => {
   try {
     const { teamId } = req.params;

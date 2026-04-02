@@ -25,8 +25,20 @@ function KeyPlayerChip({ player }) {
   );
 }
 
-export default function AIAnalysis({ fixtureId, initialAnalysis }) {
+export default function AIAnalysis({ fixtureId, initialAnalysis, onAnalysisUpdate }) {
   const [analysis, setAnalysis] = useState(initialAnalysis || null);
+
+  // Sync si initialAnalysis change (chargé depuis le cache par MatchDetail)
+  React.useEffect(() => {
+    if (initialAnalysis && !analysis) {
+      setAnalysis(initialAnalysis);
+    }
+  }, [initialAnalysis]);
+
+  const updateAnalysis = (a) => {
+    setAnalysis(a);
+    if (onAnalysisUpdate) onAnalysisUpdate(a);
+  };
   const [loading, setLoading] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [streamText, setStreamText] = useState('');
@@ -58,7 +70,7 @@ export default function AIAnalysis({ fixtureId, initialAnalysis }) {
 
       es.addEventListener('complete', (e) => {
         const data = JSON.parse(e.data);
-        setAnalysis(data.analysis);
+        updateAnalysis(data.analysis);
         setStreaming(false);
         setStreamText('');
         setLoading(false);
@@ -88,7 +100,7 @@ export default function AIAnalysis({ fixtureId, initialAnalysis }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur inconnue');
-      setAnalysis(data.analysis);
+      updateAnalysis(data.analysis);
     } catch (err) {
       setError(err.message);
     } finally {

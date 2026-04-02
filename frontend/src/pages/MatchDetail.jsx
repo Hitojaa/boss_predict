@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 import { useMatchDetail } from '../hooks/useMatches.js';
 import { usePlayerScorers } from '../hooks/useAnalysis.js';
 import WinProbability from '../components/WinProbability.jsx';
@@ -99,6 +101,16 @@ export default function MatchDetail() {
   const { fixtureId } = useParams();
   const { data, loading, error } = useMatchDetail(fixtureId);
   const { scorers, loading: scorersLoading } = usePlayerScorers(fixtureId);
+  const [matchAnalysis, setMatchAnalysis] = useState(null);
+
+  // Charge l'analyse IA en cache au montage
+  useEffect(() => {
+    if (!fixtureId) return;
+    fetch(`${API_BASE}/api/analysis/${fixtureId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.analysis) setMatchAnalysis(d.analysis); })
+      .catch(() => {});
+  }, [fixtureId]);
 
   if (loading) {
     return (
@@ -139,7 +151,8 @@ export default function MatchDetail() {
   const awayTeam = fixture?.teams?.away;
   const matchDate = fixture?.fixture?.date ? new Date(fixture.fixture.date) : null;
   const leagueId = fixture?.league?.id;
-  const isUCL = leagueId === 2;
+  const isUCL = leagueId === 2001;
+  const wp = matchAnalysis?.win_probability;
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -221,13 +234,12 @@ export default function MatchDetail() {
           </div>
         </div>
 
-        {/* Win probability placeholder (filled by AI) */}
+        {/* Win probability — affiche les vraies proba IA si disponibles */}
         <div className="mt-2">
-          <p className="text-xs text-text-muted mb-2 text-center">
-            Générez l'analyse IA ci-dessous pour voir les probabilités
-          </p>
           <WinProbability
-            home={33} draw={34} away={33}
+            home={wp?.home ?? null}
+            draw={wp?.draw ?? null}
+            away={wp?.away ?? null}
             homeTeam={homeTeam?.name}
             awayTeam={awayTeam?.name}
           />
@@ -266,7 +278,11 @@ export default function MatchDetail() {
 
       {/* AI Analysis */}
       <SectionCard title="Analyse IA (Groq)" icon="🤖" defaultOpen={true}>
-        <AIAnalysis fixtureId={fixtureId} />
+        <AIAnalysis
+          fixtureId={fixtureId}
+          initialAnalysis={matchAnalysis}
+          onAnalysisUpdate={(a) => setMatchAnalysis(a)}
+        />
       </SectionCard>
 
       {/* Injuries if any */}

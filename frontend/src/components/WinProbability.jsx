@@ -1,33 +1,42 @@
 import React from 'react';
 
 export default function WinProbability({ home, draw, away, homeTeam, awayTeam, compact = false }) {
-  const total = (home || 0) + (draw || 0) + (away || 0);
-  const homeP = total > 0 ? Math.round((home / total) * 100) : 33;
-  const drawP = total > 0 ? Math.round((draw / total) * 100) : 34;
-  const awayP = 100 - homeP - drawP;
+  const hasData = home != null && draw != null && away != null;
+  const total = hasData ? ((home || 0) + (draw || 0) + (away || 0)) : 0;
+  const homeP = total > 0 ? Math.round((home / total) * 100) : 0;
+  const drawP = total > 0 ? Math.round((draw / total) * 100) : 0;
+  const awayP = total > 0 ? (100 - homeP - drawP) : 0;
 
   if (compact) {
+    if (!hasData) {
+      return (
+        <div className="flex items-center gap-2 text-xs text-text-muted">
+          <div className="w-2 h-2 rounded-full bg-accent-cyan/40" />
+          <span>Cliquer pour générer l'analyse IA</span>
+        </div>
+      );
+    }
     return (
       <div className="space-y-1">
         <div className="flex h-3 rounded-full overflow-hidden gap-px">
-          <div
-            className="bg-result-win transition-all duration-500"
-            style={{ width: `${homeP}%` }}
-          />
-          <div
-            className="bg-result-draw transition-all duration-500"
-            style={{ width: `${drawP}%` }}
-          />
-          <div
-            className="bg-result-loss transition-all duration-500"
-            style={{ width: `${awayP}%` }}
-          />
+          <div className="bg-result-win transition-all duration-500" style={{ width: `${homeP}%` }} />
+          <div className="bg-result-draw transition-all duration-500" style={{ width: `${drawP}%` }} />
+          <div className="bg-result-loss transition-all duration-500" style={{ width: `${awayP}%` }} />
         </div>
         <div className="flex justify-between text-xs font-mono text-text-muted">
           <span className="text-result-win">{homeP}%</span>
           <span className="text-result-draw">{drawP}%</span>
           <span className="text-result-loss">{awayP}%</span>
         </div>
+      </div>
+    );
+  }
+
+  // Version complète (page détail)
+  if (!hasData) {
+    return (
+      <div className="text-center py-4 text-text-muted text-sm">
+        <p>Génère l'analyse IA ci-dessous pour voir les probabilités</p>
       </div>
     );
   }
@@ -45,25 +54,19 @@ export default function WinProbability({ home, draw, away, homeTeam, awayTeam, c
           className="bg-result-win flex items-center justify-center transition-all duration-700 ease-out"
           style={{ width: `${homeP}%` }}
         >
-          {homeP > 15 && (
-            <span className="text-xs font-mono font-bold text-white">{homeP}%</span>
-          )}
+          {homeP > 15 && <span className="text-xs font-mono font-bold text-white">{homeP}%</span>}
         </div>
         <div
           className="bg-result-draw flex items-center justify-center transition-all duration-700 ease-out"
           style={{ width: `${drawP}%` }}
         >
-          {drawP > 10 && (
-            <span className="text-xs font-mono font-bold text-white">{drawP}%</span>
-          )}
+          {drawP > 10 && <span className="text-xs font-mono font-bold text-white">{drawP}%</span>}
         </div>
         <div
           className="bg-result-loss flex items-center justify-center transition-all duration-700 ease-out"
           style={{ width: `${awayP}%` }}
         >
-          {awayP > 15 && (
-            <span className="text-xs font-mono font-bold text-white">{awayP}%</span>
-          )}
+          {awayP > 15 && <span className="text-xs font-mono font-bold text-white">{awayP}%</span>}
         </div>
       </div>
 
