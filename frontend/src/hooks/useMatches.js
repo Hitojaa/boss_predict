@@ -1,18 +1,38 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-const POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 export function useMatches(competition = 'all') {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [apiUsage, setApiUsage] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const fetchMatches = useCallback(async () => {
+  // Load from cache only — no API call, no quota used
+  const loadFromCache = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/api/matches/upcoming?competition=${competition}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setMatches(data.matches || []);
+      setApiUsage(data.apiUsage);
+      if (data.matches?.length) setLastUpdated(new Date());
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [competition]);
+
+  // Manual refresh — calls the real API, consumes 2 requests (UCL + WC)
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/matches/upcoming?competition=${competition}&refresh=true`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setMatches(data.matches || []);
@@ -22,19 +42,17 @@ export function useMatches(competition = 'all') {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   }, [competition]);
 
+  // On mount and competition change: load cache only
   useEffect(() => {
     setLoading(true);
-    fetchMatches();
+    loadFromCache();
+  }, [loadFromCache]);
 
-    const interval = setInterval(fetchMatches, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [fetchMatches]);
-
-  return { matches, loading, error, apiUsage, lastUpdated, refetch: fetchMatches };
+  return { matches, loading, refreshing, error, apiUsage, lastUpdated, refresh };
 }
 
 export function useMatchDetail(fixtureId) {

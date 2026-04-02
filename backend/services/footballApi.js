@@ -41,21 +41,34 @@ async function apiRequest(endpoint, params = {}) {
 }
 
 // --- Upcoming matches ---
-async function getUpcomingMatches(leagueId, season, next = 10) {
-  const cached = cache.getCachedMatches(leagueId);
-  if (cached) {
-    console.log(`[Cache HIT] Matches for league ${leagueId}`);
-    return cached;
+async function getUpcomingMatches(leagueId, season, next = 10, forceRefresh = false) {
+  if (!forceRefresh) {
+    const cached = cache.getCachedMatches(leagueId);
+    if (cached) {
+      console.log(`[Cache HIT] Matches for league ${leagueId} (${cached.length} matches)`);
+      return cached;
+    }
+    // No cache and no forceRefresh → return empty, don't consume API quota
+    console.log(`[Cache MISS] League ${leagueId} — use forceRefresh=true to fetch from API`);
+    return [];
   }
 
   try {
+    console.log(`[API] Fetching fixtures — league=${leagueId} season=${season} next=${next}`);
     const data = await apiRequest('/fixtures', { league: leagueId, season, next });
+    console.log(`[API] Raw response for league ${leagueId}: ${JSON.stringify(data)?.slice(0, 300)}`);
     if (data && data.length > 0) {
       cache.setCachedMatches(leagueId, data);
+      console.log(`[Cache SET] ${data.length} matches cached for league ${leagueId}`);
+    } else {
+      console.warn(`[API] Empty response for league ${leagueId} season=${season} — check subscription on RapidAPI`);
     }
     return data || [];
   } catch (err) {
-    console.error(`[API Error] getUpcomingMatches: ${err.message}`);
+    console.error(`[API Error] getUpcomingMatches league=${leagueId}: ${err.message}`);
+    if (err.response) {
+      console.error(`[API Error] Status: ${err.response.status}, Body: ${JSON.stringify(err.response.data)?.slice(0, 300)}`);
+    }
     return [];
   }
 }
@@ -196,6 +209,16 @@ async function refreshAllUpcomingMatches() {
   return results;
 }
 
+// Raw API test — for debugging, no cache
+async function testApiConnection(leagueId, season) {
+  try {
+    const data = await apiRequest('/fixtures', { league: leagueId, season, next: 5 });
+    return { ok: true, count: data?.length || 0, sample: data?.[0] || null };
+  } catch (err) {
+    return { ok: false, error: err.message, status: err.response?.status, body: err.response?.data };
+  }
+}
+
 module.exports = {
   LEAGUES,
   getUpcomingMatches,
@@ -207,4 +230,5 @@ module.exports = {
   getInjuries,
   getTeamRecentForm,
   refreshAllUpcomingMatches,
+  testApiConnection,
 };

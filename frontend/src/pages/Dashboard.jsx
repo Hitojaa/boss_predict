@@ -46,7 +46,7 @@ function EmptyState({ competition }) {
 
 export default function Dashboard() {
   const [competition, setCompetition] = useState('all');
-  const { matches, loading, error, apiUsage, lastUpdated } = useMatches(competition);
+  const { matches, loading, refreshing, error, apiUsage, lastUpdated, refresh } = useMatches(competition);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -64,8 +64,25 @@ export default function Dashboard() {
       {/* Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <CompetitionFilter active={competition} onChange={setCompetition} />
-        <div className="flex flex-col items-end gap-1">
-          <ApiUsageBar apiUsage={apiUsage} />
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-3">
+            <ApiUsageBar apiUsage={apiUsage} />
+            <button
+              onClick={refresh}
+              disabled={refreshing}
+              title="Appel API réel — consomme ~2 requêtes"
+              className={`
+                flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200
+                ${refreshing
+                  ? 'bg-bg-surface border-white/10 text-text-muted cursor-not-allowed'
+                  : 'bg-bg-surface border-accent-cyan/30 text-accent-cyan hover:bg-accent-cyan/10 active:scale-95'
+                }
+              `}
+            >
+              <span className={refreshing ? 'animate-spin' : ''}>↻</span>
+              {refreshing ? 'Chargement…' : 'Refresh API'}
+            </button>
+          </div>
           {lastUpdated && (
             <span className="text-xs text-text-muted">
               Mis à jour {lastUpdated.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}

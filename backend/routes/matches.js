@@ -5,10 +5,11 @@ const cache = require('../services/cacheService');
 
 const { LEAGUES } = footballApi;
 
-// GET /api/matches/upcoming?competition=ucl|worldcup|all
+// GET /api/matches/upcoming?competition=ucl|worldcup|all&refresh=true
 router.get('/upcoming', async (req, res) => {
   try {
-    const { competition = 'all', next = 10 } = req.query;
+    const { competition = 'all', next = 10, refresh } = req.query;
+    const forceRefresh = refresh === 'true';
     const results = [];
 
     const leaguesToFetch = [];
@@ -20,7 +21,7 @@ router.get('/upcoming', async (req, res) => {
     }
 
     for (const league of leaguesToFetch) {
-      const matches = await footballApi.getUpcomingMatches(league.id, league.season, parseInt(next));
+      const matches = await footballApi.getUpcomingMatches(league.id, league.season, parseInt(next), forceRefresh);
       results.push(...matches.map(m => ({
         ...m,
         leagueKey: league.id === 2 ? 'ucl' : 'worldcup',
@@ -112,6 +113,20 @@ router.get('/league/:leagueId/scorers', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET /api/matches/debug — test API connection, shows raw response
+router.get('/debug', async (req, res) => {
+  const results = {};
+  for (const [key, league] of Object.entries(LEAGUES)) {
+    results[key] = await footballApi.testApiConnection(league.id, league.season);
+  }
+  res.json({
+    apiKey: process.env.RAPIDAPI_KEY ? `${process.env.RAPIDAPI_KEY.slice(0, 8)}...` : 'NOT SET',
+    apiHost: process.env.RAPIDAPI_HOST,
+    leagues: results,
+    apiUsageToday: cache.getApiUsageToday(),
+  });
 });
 
 // GET /api/matches/status/api-usage
